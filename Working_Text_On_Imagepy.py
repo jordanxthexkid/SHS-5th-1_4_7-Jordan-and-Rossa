@@ -7,6 +7,8 @@ import PIL
 from PIL import ImageFont
 from PIL import Image
 from PIL import ImageDraw
+from PIL import ImageEnhance
+import os, sys
 
 #the code below just replaces the picture with text and doesn't create a mask
 #img = Image.new('RGB', (100, 30), color = (73, 109, 137))
@@ -14,36 +16,32 @@ from PIL import ImageDraw
 #d.text((10,10), "Hello World", fill=(255,255,0))
 #img.save('basketball.png') 
 
-def main():
-    # Open the original image
-    main = Image.open("CocaCola.png")
-
-    # Create a new image for the watermark with an alpha layer (RGBA)
-    #  the same size as the original image
-    watermark = Image.new("RGBA", main.size)
-    # Get an ImageDraw object so we can draw on the image
-    waterdraw = ImageDraw.ImageDraw(watermark, "RGBA")
-    # Place the text at (10, 10) in the upper left corner. Text will be white.
-    waterdraw.text((10, 10), "'Taste the Feeling'")
-
-    # Get the watermark image as grayscale and fade the image
-    # See <http://www.pythonware.com/library/pil/handbook/image.htm#Image.point>
-    #  for information on the point() function
-    # Note that the second parameter we give to the min function determines
-    #  how faded the image will be. That number is in the range [0, 256],
-    #  where 0 is black and 256 is white. A good value for fading our white
-    #  text is in the range [100, 200].
-    watermask = watermark.convert("L").point(lambda x: min(x, 200))
-    # Apply this mask to the watermark image, using the alpha filter to 
-    #  make it transparent
-    watermark.putalpha(watermask)
-
-    # Paste the watermark (with alpha layer) onto the original image and save it
-    main.paste(watermark, None, watermark)
-    main.save("12volt-watermarked.jpg", "JPEG")
-
+FONT = 'Arial.ttf'
+ 
+def add_watermark(in_file, text, out_file='GlassCoke.jpg', angle=0, opacity=0.75):
+    img = Image.open('GlassCoke.png').convert('RGB')
+    watermark = Image.new('RGBA', img.size, (0,0,0,0))
+    size = 10
+    n_font = ImageFont.truetype(FONT, size)
+    n_width, n_height = n_font.getsize(text)
+    while n_width+n_height < watermark.size[0]:
+        size += 2
+        n_font = ImageFont.truetype(FONT, size)
+        n_width, n_height = n_font.getsize(text)
+    draw = ImageDraw.Draw(watermark, 'RGBA')
+    draw.text(((watermark.size[0] - n_width) / 2,
+              (watermark.size[1] - n_height) / 12),
+              text, font=n_font)
+    watermark = watermark.rotate(angle,Image.BICUBIC)
+    alpha = watermark.split()[3]
+    alpha = ImageEnhance.Brightness(alpha).enhance(opacity)
+    watermark.putalpha(alpha)
+    Image.composite(watermark, img, watermark).save(out_file, 'JPEG')
 if __name__ == '__main__':
-    main() 
+    if len(sys.argv) < 3:
+        sys.exit('Usage: %s <input-image> <text> <output-image> ' \
+                 '<angle> <opacity> ' % os.path.basename(sys.argv[0]))
+    add_watermark(*sys.argv[1:]) 
 
 def frame(original_image,color,frame_width):
     """ frames the image with a specified color of a PIL.Image
